@@ -1,0 +1,15 @@
+python -m main.cli.train_method_sft \
+  --config configs/selectstream_qwen25vl7b_lvm_sft.yaml \
+  --train_jsonl path_to_dataset.jsonl \
+  --init_from outputs/qwen25vl7b_method_phase1/epoch0 \
+  --output_dir outputs/qwen25vl7b_method_phase2 \
+  --epochs 1 \
+  --default_sample_fps 1.0 \
+  --stream_update_unit frame \
+  --beta_ret 0.2 \
+  --gamma_spar 0.05 \
+  --ret_id_weight 1.0 \
+  --ret_time_weight 1.0 \
+  --time_tolerance 0.0 \
+  --evidence_topk 8 \
+  --freeze_lvm_writer

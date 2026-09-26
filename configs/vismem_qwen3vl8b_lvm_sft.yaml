@@ -1,0 +1,62 @@
+# Qwen3-VL-8B + Method-LVM (SFT-first)
+model:
+  model_name_or_path: "Qwen/Qwen3-VL-8B-Instruct"
+  torch_dtype: "bfloat16"
+  device_map: "auto"
+  trust_remote_code: true
+
+vismem:
+  short_invoke_token: "<ms_I>"
+  short_end_token: "<ms_E>"
+  long_invoke_token: "<ml_I>"
+  long_end_token: "<ml_E>"
+
+  query_len: 8
+  short_mem_len: 8
+  long_mem_len: 16
+
+  query_builder:
+    num_layers: 2
+    num_heads: 8
+    dropout: 0.0
+    ff_mult: 4
+
+  # Key switch: use method-style latent write memory
+  former_backend: "lvm_sft"   # lora_llm | tiny_transformer | lvm_sft
+
+  # LVM write routing/gating
+  lvm_num_slots: 256
+  lvm_segment_len: 32
+  lvm_tau_r: 0.75
+  lvm_tau_s: 0.35
+  lvm_gate_hidden: 256
+  lvm_normalize_slot: true
+  lvm_eviction_policy: "fifo"   # fifo | low_surprise | low_access
+  lvm_readout_policy: "recent"  # recent | surprise | hybrid
+  lvm_delta_t_scale: 32.0
+
+  # SAW (Surprise-driven Adaptive Windowing)
+  lvm_use_saw: true
+  lvm_saw_lambda_attn: 0.5
+  lvm_saw_ema_decay: 0.9
+  lvm_saw_l_min: 8
+  lvm_saw_l_max: 64
+  lvm_saw_energy_budget: 8.0
+  lvm_saw_recent_window: 64
+  lvm_saw_quantile: 0.9
+  lvm_saw_attn_groups: 32
+  lvm_saw_use_attn_proxy: true
+
+  # keep for compatibility when backend != lvm_sft
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.05
+    target_modules: ["q_proj","k_proj","v_proj","o_proj","gate_proj","up_proj","down_proj"]
+
+training:
+  seed: 1234
+  max_new_tokens: 256
+  lr: 2.0e-4
+  batch_size: 1
+  grad_accum: 4

@@ -1,0 +1,11 @@
+torch>=2.1
+transformers>=4.57.0
+accelerate>=0.33.0
+safetensors>=0.4.0
+pillow>=10.0.0
+pyyaml>=6.0.1
+tqdm>=4.66.0
+numpy>=1.26
+imageio>=2.36.0
+# Optional but recommended
+peft>=0.12.0
