@@ -216,9 +216,9 @@ pip install opencv-python-headless   # video decoding fallback
 
 SelectStream uses one-stage supervised fine-tuning with a frozen backbone:
 
-$$
+```math
 \mathcal{L} = \mathcal{L}_{\text{ans}} + \beta\,\mathcal{L}_{\text{ret}} + \gamma\,\mathcal{L}_{\text{spar}}
-$$
+```
 
 ```bash
 # Qwen2.5-VL-7B
@@ -337,27 +337,31 @@ Video rows follow the causal streaming protocol: frames are written online and t
 
 ### Surprise-driven Adaptive Windowing
 
-$$
-s_t = \lambda\, \mathrm{JS}(A_t \,\|\, A_{t-1}) + (1-\lambda)\big(1-\cos(g_t, g_{t-1})\big), \qquad \bar{s}_t = \rho\,\bar{s}_{t-1} + (1-\rho)\, s_t
-$$
+```math
+s_t = \lambda\,\mathrm{JS}(A_t \,\|\, A_{t-1}) + (1-\lambda)\big(1-\cos(g_t, g_{t-1})\big), \qquad \bar{s}_t = \rho\,\bar{s}_{t-1} + (1-\rho)\,s_t
+```
 
-A segment closes when $t - t_{\text{start}} \ge L_{\min}$ and $\big(\bar{s}_t > \theta_{\text{high}} \;\lor\; \sum_{k=t_{\text{start}}}^{t} \bar{s}_k > B_s \;\lor\; t - t_{\text{start}} \ge L_{\max}\big)$.
+A segment closes when
+
+```math
+t - t_{\text{start}} \ge L_{\min} \quad \text{and} \quad \Big(\bar{s}_t > \theta_{\text{high}} \;\lor\; \sum_{k=t_{\text{start}}}^{t} \bar{s}_k > B_s \;\lor\; t - t_{\text{start}} \ge L_{\max}\Big)
+```
 
 ### Gated Writing and Consolidation
 
-$$
-g = \sigma\big(\mathrm{MLP}([z_j; h_{i^*}; \bar{s}_j; \Delta t])\big), \qquad h_{i^*} \leftarrow (1-g)\, h_{i^*} + g\, f_{\text{write}}(z_j, h_{i^*})
-$$
+```math
+g = \sigma\big(\mathrm{MLP}([z_j; h_{i^*}; \bar{s}_j; \Delta t])\big), \qquad h_{i^*} \leftarrow (1-g)\,h_{i^*} + g\,f_{\text{write}}(z_j, h_{i^*})
+```
 
-When the memory exceeds $N$ nodes, the pair with the smallest penalty $\pi_{uv} = p^{\text{sim}}_{uv} + p^{\text{pri}}_{uv}$ is merged; the priority term protects surprising, frequently read, and recently updated nodes.
+When the memory exceeds $`N`$ nodes, the pair with the smallest penalty $`\pi_{uv} = p^{\text{sim}}_{uv} + p^{\text{pri}}_{uv}`$ is merged; the priority term protects surprising, frequently read, and recently updated nodes.
 
 ### Query-conditioned Retrieval
 
-$$
+```math
 \mathrm{score}_i = \cos(u, h_i) + \eta\,\hat{s}_i - \xi_\ell\,\hat{\ell}_i - \xi_m\,\hat{m}^{\text{merge}}_i
-$$
+```
 
-Top-$k$ seeds are expanded through temporal and semantic edges within budget $B$, refined by $K$ relational graph-attention layers, re-scored, and the top-$M$ nodes are calibrated as $e_m = \mathrm{LN}(W_e \tilde{h}_{i_m})$.
+Top-$`k`$ seeds are expanded through temporal and semantic edges within budget $`B`$, refined by $`K`$ relational graph-attention layers, re-scored, and the top-$`M`$ nodes are calibrated as $`e_m = \mathrm{LN}(W_e \tilde{h}_{i_m})`$.
 
 ### Default Hyperparameters
 
