@@ -26,6 +26,35 @@ pip install opencv-python-headless
 
 `transformers>=4.57` is required for Qwen3-VL. `opencv-python-headless` is a video decoding fallback.
 
+## Training Data
+
+SelectStream is trained on [Streamo-Instruct-465K](https://huggingface.co/datasets/maifoundations/Streamo-Instruct-465K) ([Streamo](https://github.com/maifoundations/Streamo), Xia et al.), which covers narration, action and event captioning, event grounding, and time-sensitive QA.
+
+1. **Annotations.** Accept the dataset terms on Hugging Face, then download:
+
+   ```bash
+   huggingface-cli login
+   huggingface-cli download maifoundations/Streamo-Instruct-465K --repo-type dataset --local-dir data/Streamo-Instruct-465K
+   ```
+
+2. **Videos.** Videos are not redistributed. Obtain them from the source datasets (ActivityNet, COIN, DiDeMo, Ego-TimeQA, HowTo, Koala, LLaVA-Video, QVHighlights, QuerYD, TACoS, YouCook2) and place them under one root so that `<video_root>/<video_path>` resolves for each annotation.
+
+3. **Convert** to the SelectStream JSONL format:
+
+   ```bash
+   python -m main.data.prepare_streamo \
+     --anno_dir data/Streamo-Instruct-465K \
+     --video_root data/videos \
+     --output data/streamo_selectstream.jsonl \
+     --skip_missing_videos
+   ```
+
+   Each Streamo response becomes one causal training row, following Streamo's time convention (time `t` denotes the second `<t-1 s, t s>`):
+   - **Span responses** (`st_time`/`end_time`): the event frames become `evidence_timestamps` for `L_ret`, and the question is answered at the frame right after the event ends, so the evidence lies in the observed history.
+   - **Instant responses** (`time`): answered at that frame with the answer loss only.
+
+   Use `--tasks qa event_grounding ...` to keep a subset, or `--max_history_sec` to cap the streamed prefix.
+
 ## Data Format
 
 Streaming video QA data is stored as JSONL:
@@ -54,7 +83,7 @@ Streaming video QA data is stored as JSONL:
 ```bash
 python -m main.cli.train_method_sft \
   --config configs/selectstream_qwen25vl7b_lvm_sft.yaml \
-  --train_jsonl /path/to/stream_train.jsonl \
+  --train_jsonl data/streamo_selectstream.jsonl \
   --output_dir outputs/selectstream_qwen25vl7b \
   --epochs 1
 ```
@@ -115,6 +144,7 @@ Video rows are evaluated with the causal streaming protocol. With `--report_evid
 | Projected visual embeddings, latent evidence injection, decoding | `main/model/model.py` |
 | Training objective (`L_ans`, `L_ret`, `L_spar`) and grounding metrics | `main/trainer/method_sft.py` |
 | Causal streaming loop | `main/utils/streaming.py` |
+| Streamo-Instruct-465K conversion | `main/data/prepare_streamo.py` |
 
 `main/cli/train_stage1.py`, `main/cli/train_stage2.py` and the `vismem_*` configs are legacy compatibility paths and are not part of SelectStream.
 
@@ -128,3 +158,7 @@ Video rows are evaluated with the causal streaming protocol. With `--report_evid
   year      = {2026}
 }
 ```
+
+## Acknowledgements
+
+Training data comes from [Streamo-Instruct-465K](https://huggingface.co/datasets/maifoundations/Streamo-Instruct-465K); please also cite [Streaming Video Instruction Tuning](https://arxiv.org/abs/2512.21334) if you use it.
