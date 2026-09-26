@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SelectStream</title>
+  <meta name="description" content="SelectStream: a selective latent-memory framework for streaming video understanding. What Should a Streaming Video Model Remember? (NeurIPS 2026)">
+  <meta property="og:title" content="What Should a Streaming Video Model Remember?">
+  <meta property="og:description" content="SelectStream keeps the current observation visible to a frozen VLM and exposes history only through a compact, query-conditioned latent evidence budget. NeurIPS 2026.">
+  <meta property="og:image" content="https://selectstream.github.io/static/images/fig2_overview.png">
+  <meta property="og:url" content="https://selectstream.github.io/">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232f5bd3'/%3E%3Cpath d='M7 20h4l3-9 4 12 3-7h4' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #fbfbfd;
+      --surface: #ffffff;
+      --surface-2: #f2f4f8;
+      --text: #1b1f29;
+      --muted: #5a6275;
+      --border: #e2e5ec;
+      --accent: #2f5bd3;
+      --accent-soft: #e8eefc;
+      --write: #3f7d3a;
+      --preserve: #2f5bd3;
+      --read: #c2601a;
+      --inject: #7a4fc1;
+      --highlight: #fff6e0;
+      --figure-bg: #ffffff;
+      --shadow: 0 1px 2px rgba(20, 24, 40, 0.05), 0 4px 16px rgba(20, 24, 40, 0.05);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #111318;
+        --surface: #181b22;
+        --surface-2: #1f232c;
+        --text: #e7e9ee;
+        --muted: #a0a7b6;
+        --border: #2c313c;
+        --accent: #8aa8ff;
+        --accent-soft: #232c45;
+        --write: #8cc986;
+        --preserve: #8aa8ff;
+        --read: #f0a46a;
+        --inject: #c2a4f2;
+        --highlight: #2b2618;
+        --figure-bg: #f7f7f9;
+        --shadow: none;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #111318;
+      --surface: #181b22;
+      --surface-2: #1f232c;
+      --text: #e7e9ee;
+      --muted: #a0a7b6;
+      --border: #2c313c;
+      --accent: #8aa8ff;
+      --accent-soft: #232c45;
+      --write: #8cc986;
+      --preserve: #8aa8ff;
+      --read: #f0a46a;
+      --inject: #c2a4f2;
+      --highlight: #2b2618;
+      --figure-bg: #f7f7f9;
+      --shadow: none;
+    }
+
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 17px;
+      line-height: 1.65;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+    .narrow { max-width: 820px; margin: 0 auto; }
+
+    header.hero { padding: 64px 0 28px; text-align: center; }
+    .venue {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: 0.02em;
+    }
+    h1 {
+      font-size: clamp(30px, 5vw, 46px);
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      margin: 18px 0 10px;
+      font-weight: 700;
+    }
+    .subtitle { color: var(--muted); font-size: clamp(16px, 2.2vw, 19px); margin: 0 auto 22px; max-width: 720px; }
+    .subtitle strong { color: var(--text); font-weight: 600; }
+    .authors { font-size: 18px; margin: 0 0 4px; }
+    .authors span { white-space: nowrap; margin: 0 10px; }
+    .affils { color: var(--muted); font-size: 15px; margin: 0; }
+    .affils span { white-space: nowrap; margin: 0 8px; }
+    .note { color: var(--muted); font-size: 13px; margin-top: 6px; }
+
+    .links { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 26px 0 0; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 9px 18px;
+      border-radius: 999px;
+      background: var(--text);
+      color: var(--bg);
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .btn:hover { text-decoration: none; opacity: 0.88; }
+    .btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+    section { padding: 36px 0; }
+    h2 { font-size: 27px; letter-spacing: -0.01em; margin: 0 0 16px; text-align: center; }
+    h3 { font-size: 18px; margin: 0 0 6px; }
+    p { margin: 0 0 14px; }
+
+    figure { margin: 0; }
+    .figure-card {
+      background: var(--figure-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+    }
+    .figure-card img { display: block; width: 100%; height: auto; }
+    figcaption { color: var(--muted); font-size: 14.5px; margin-top: 10px; line-height: 1.55; }
+    figcaption b { color: var(--text); }
+
+    .abstract { text-align: justify; hyphens: auto; }
+
+    .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 8px; }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 16px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .stat .num { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+    .stat .lbl { color: var(--muted); font-size: 14px; }
+
+    .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--c, var(--accent));
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+    .card .tag { color: var(--c); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+    .card.write { --c: var(--write); }
+    .card.preserve { --c: var(--preserve); }
+    .card.read { --c: var(--read); }
+    .card.inject { --c: var(--inject); }
+
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+    table { border-collapse: collapse; width: 100%; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+    th, td { padding: 8px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--border); }
+    th:first-child, td:first-child { text-align: left; }
+    thead th { background: var(--surface-2); font-weight: 600; }
+    tbody tr:last-child td { border-bottom: none; }
+    tr.group td { background: var(--surface-2); color: var(--muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; text-align: left; }
+    tr.ours td { background: var(--highlight); font-weight: 600; }
+    .table-caption { color: var(--muted); font-size: 14.5px; margin: 10px 2px 0; }
+    .tables { display: grid; gap: 28px; }
+
+    .stack { display: grid; gap: 28px; }
+
+    pre.bib {
+      position: relative;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13.5px;
+      line-height: 1.55;
+      margin: 0;
+    }
+    .copy {
+      position: absolute; top: 10px; right: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font: 500 13px "Inter", sans-serif;
+      cursor: pointer;
+    }
+
+    footer { color: var(--muted); font-size: 14px; text-align: center; padding: 36px 0 48px; border-top: 1px solid var(--border); margin-top: 24px; }
+
+    @media (max-width: 720px) {
+      body { font-size: 16px; }
+      header.hero { padding-top: 40px; }
+      .stats { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr; }
+      .abstract { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero wrap">
+    <span class="venue">NeurIPS 2026</span>
+    <h1>What Should a Streaming Video Model Remember?</h1>
+    <p class="subtitle"><strong>SelectStream</strong> — a selective latent-memory framework that keeps the current observation visible to a frozen VLM and exposes history only through a compact, query-conditioned evidence budget.</p>
+    <p class="authors">
+      <span>Haonan Ge<sup>1,2</sup></span>
+      <span>Yiwei Wang<sup>2</sup></span>
+      <span>Hang Wu<sup>2</sup></span>
+      <span>Yujun Cai<sup>3,†</sup></span>
+    </p>
+    <p class="affils">
+      <span><sup>1</sup>University of California, Santa Barbara</span>
+      <span><sup>2</sup>University of California, Merced</span>
+      <span><sup>3</sup>The University of Queensland</span>
+    </p>
+    <p class="note"><sup>†</sup>Corresponding author</p>
+    <nav class="links">
+      <a class="btn" href="https://arxiv.org/abs/2606.16353">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6zM14 3.5V8h4.5"/></svg>Paper
+      </a>
+      <a class="btn" href="https://arxiv.org/pdf/2606.16353">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11l4-4 1.4 1.4L12 17.8 6.6 11.4 8 10l4 4V3zM5 19h14v2H5z"/></svg>PDF
+      </a>
+      <a class="btn" href="https://github.com/selectstream/SelectStream">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.39-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>Code
+      </a>
+      <a class="btn" href="#bibtex">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h2v2H7v12h2v2H5V4zm10 0h2v16h-4v-2h2V6h-2V4z"/></svg>BibTeX
+      </a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="wrap">
+      <figure>
+        <div class="figure-card"><img src="static/images/fig1_motivation.png" alt="Motivation: sparse surprise peaks over a long stream, a query-conditioned memory graph, and a radar chart comparing SelectStream with HERMES, StreamForest and Flash-VStream." width="1376" height="404"></div>
+        <figcaption><b>Figure 1.</b> Relevant events may appear sparsely over a long stream, while later queries need evidence beyond the recent context. In this counting example, inserted movie clips form sparse surprise peaks. SelectStream strengthens long-range memory and efficiency without sacrificing current-scene perception.</figcaption>
+      </figure>
+    </section>
+
+    <section class="wrap narrow">
+      <h2>Abstract</h2>
+      <p class="abstract">Streaming video understanding models must answer queries at any moment during an ongoing stream, using only what they have observed so far and under fixed memory and computation budgets. Existing methods address this by adding memory banks, retrieval modules, or visual token compression to preserve long-range history. However, strong recent-window baselines show that indiscriminate history injection can dilute current-scene perception, suggesting that the key challenge is not whether to use memory, but how to allocate it selectively. We formulate this as budgeted online latent evidence allocation and propose SelectStream, a selective latent-memory framework that keeps the current observation directly visible to a frozen VLM while exposing historical information only through a compact, query-conditioned evidence budget. Three coordinated mechanisms govern when to write, what to preserve, and how to retrieve: surprise-driven adaptive windowing, priority-preserving consolidation, and query-conditioned graph reasoning over a fixed-capacity latent memory graph. Retrieved evidence is calibrated and injected as latent tokens for answer generation, without replaying frames or growing the context with stream length. Experimental results show that SelectStream achieves strong online streaming performance and preserves general video understanding, reaching 82.67% on StreamingBench, 67.03% on OVO-Bench, and 74.4% average accuracy on offline video benchmarks, while outperforming strong recent-window baselines and prior streaming memory methods.</p>
+      <div class="stats" aria-label="Headline results with Qwen3-VL-8B">
+        <div class="stat"><div class="num">82.67</div><div class="lbl">StreamingBench</div></div>
+        <div class="stat"><div class="num">67.03</div><div class="lbl">OVO-Bench overall</div></div>
+        <div class="stat"><div class="num">74.4</div><div class="lbl">Offline average (VideoMME / MLVU / MVBench)</div></div>
+      </div>
+    </section>
+
+    <section class="wrap">
+      <h2>Method</h2>
+      <figure>
+        <div class="figure-card"><img src="static/images/fig2_overview.png" alt="SelectStream overview: surprise-driven adaptive windowing, latent visual memory with a dynamic memory graph, graph attention reasoning, and latent evidence injection into a frozen MLLM." width="1328" height="790" loading="lazy"></div>
+        <figcaption><b>Figure 2.</b> SelectStream writes projected VLM visual embeddings into a budgeted latent memory graph, retrieves a query-conditioned evidence subgraph, and injects calibrated latent evidence tokens into a frozen MLLM for answer generation.</figcaption>
+      </figure>
+      <div class="cards">
+        <div class="card write">
+          <div class="tag">When to write</div>
+          <h3>Surprise-driven Adaptive Windowing</h3>
+          <p>Surprise combines attention shift and feature change. A segment closes on a surprise spike, accumulated surprise energy, or the maximum length — coarse entries for stable intervals, finer ones near transitions.</p>
+        </div>
+        <div class="card preserve">
+          <div class="tag">What to preserve</div>
+          <h3>Latent Visual Memory</h3>
+          <p>Segments are encoded and written into a fixed-capacity memory graph with gated updates. When the budget <i>N</i> is exceeded, priority-preserving consolidation merges the pair with the smallest graph-aware penalty, protecting surprising, frequently read, and recent evidence.</p>
+        </div>
+        <div class="card read">
+          <div class="tag">How to read</div>
+          <h3>Graph Attention Reasoning</h3>
+          <p>The query scores active nodes, routes through temporal and semantic neighborhoods within a subgraph budget <i>B</i>, and refines them with relational graph attention before selecting the top-<i>M</i> nodes.</p>
+        </div>
+        <div class="card inject">
+          <div class="tag">How much to expose</div>
+          <h3>Latent Evidence Injection</h3>
+          <p>Only <i>M</i> calibrated evidence tokens join the prompt and current observation. There is no frame replay or text summary, and the context does not grow with stream length.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap">
+      <h2>Results</h2>
+      <div class="tables">
+        <div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th>Model</th><th>#Frames</th><th>StreamingBench</th><th>OVO RT Avg.</th><th>OVO BT Avg.</th><th>OVO RT/BT Avg.</th><th>OVO Overall</th></tr>
+              </thead>
+              <tbody>
+                <tr class="group"><td colspan="7">Offline video LLMs</td></tr>
+                <tr><td>Qwen2.5-VL-7B</td><td>1 fps</td><td>73.31</td><td>59.90</td><td>44.70</td><td>52.28</td><td>–</td></tr>
+                <tr><td>LLaVA-OneVision-7B</td><td>32</td><td>71.12</td><td>64.00</td><td>43.70</td><td>53.85</td><td>52.74</td></tr>
+                <tr class="group"><td colspan="7">Online / streaming video LLMs</td></tr>
+                <tr><td>Flash-VStream-7B</td><td>1 fps</td><td>23.23</td><td>28.40</td><td>27.40</td><td>27.90</td><td>33.61</td></tr>
+                <tr><td>StreamForest-7B</td><td>1 fps</td><td>77.26</td><td>61.20</td><td>52.00</td><td>56.60</td><td>–</td></tr>
+                <tr><td>Streamo-7B</td><td>2 fps</td><td>–</td><td>67.44</td><td>49.18</td><td>58.31</td><td>57.86</td></tr>
+                <tr><td>HERMES-7B</td><td>1 fps</td><td>79.44</td><td>69.00</td><td>49.40</td><td>59.20</td><td>–</td></tr>
+                <tr><td>ThinkStream-7B</td><td>1 fps</td><td>75.00</td><td>69.12</td><td>60.68</td><td>64.90</td><td>–</td></tr>
+                <tr><td>Qwen2.5-VL-7B + 4f (recent window)</td><td>1 fps</td><td>78.47</td><td>78.40</td><td>51.90</td><td>65.13</td><td>–</td></tr>
+                <tr><td>Qwen3-VL-8B + 4f (recent window)</td><td>1 fps</td><td>80.59</td><td>81.40</td><td>54.00</td><td>67.70</td><td>–</td></tr>
+                <tr class="ours"><td>SelectStream-Qwen2.5-VL-7B</td><td>1 fps</td><td>81.42</td><td>80.85</td><td>61.05</td><td>70.95</td><td>65.71</td></tr>
+                <tr class="ours"><td>SelectStream-Qwen3-VL-8B</td><td>1 fps</td><td>82.67</td><td>82.76</td><td>62.20</td><td>72.48</td><td>67.03</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="table-caption"><b>Online streaming benchmarks</b> (subset of Table 1). RT: Real-Time Visual Perception; BT: Backward Tracing. The largest gains appear on Backward Tracing, which directly tests the use of prior visual context, while current-scene perception is retained.</p>
+        </div>
+
+        <div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th>Model</th><th>#Frames</th><th>VideoMME</th><th>MLVU</th><th>MVBench</th><th>Avg.</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>LLaVA-Video-7B</td><td>64</td><td>63.3</td><td>70.8</td><td>58.6</td><td>64.2</td></tr>
+                <tr><td>StreamForest-7B</td><td>1 fps</td><td>61.4</td><td>70.0</td><td>70.2</td><td>67.2</td></tr>
+                <tr><td>Qwen2.5-VL-7B</td><td>max 768</td><td>65.1</td><td>70.2</td><td>69.6</td><td>68.3</td></tr>
+                <tr><td>Qwen3-VL-8B</td><td>2 fps, max 2048</td><td>71.4</td><td>78.1</td><td>68.7</td><td>72.7</td></tr>
+                <tr class="ours"><td>SelectStream-Qwen2.5-VL-7B</td><td>1 fps, max 1024</td><td>67.8</td><td>73.0</td><td>70.4</td><td>70.4</td></tr>
+                <tr class="ours"><td>SelectStream-Qwen3-VL-8B</td><td>1 fps, max 1024</td><td>73.2</td><td>80.0</td><td>69.9</td><td>74.4</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="table-caption"><b>Offline video generalization</b> (subset of Table 2), evaluated with a causal final-query protocol. SelectStream preserves the backbone's general video understanding while adding long-range evidence.</p>
+        </div>
+
+        <div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th>Variant (SelectStream-Qwen2.5-VL-7B)</th><th>StreamingBench</th><th>OVO-Bench</th><th>MLVU</th></tr>
+              </thead>
+              <tbody>
+                <tr class="group"><td colspan="4">Memory allocation</td></tr>
+                <tr><td>Fixed segments w/o SAW</td><td>79.86</td><td>64.21</td><td>71.2</td></tr>
+                <tr><td>w/o gated writing</td><td>80.21</td><td>64.48</td><td>71.7</td></tr>
+                <tr><td>FIFO consolidation</td><td>79.42</td><td>63.61</td><td>70.4</td></tr>
+                <tr><td>Similarity-only merging</td><td>80.03</td><td>64.03</td><td>71.0</td></tr>
+                <tr class="group"><td colspan="4">Evidence readout</td></tr>
+                <tr><td>Top-<i>k</i> retrieval w/o GAR</td><td>79.71</td><td>63.92</td><td>71.1</td></tr>
+                <tr><td>Fixed-hop expansion</td><td>80.09</td><td>64.28</td><td>71.6</td></tr>
+                <tr><td>w/o evidence calibration</td><td>78.96</td><td>63.08</td><td>70.2</td></tr>
+                <tr><td>w/o <i>L</i><sub>ret</sub></td><td>80.27</td><td>64.42</td><td>71.8</td></tr>
+                <tr><td>w/o <i>L</i><sub>spar</sub></td><td>80.76</td><td>64.82</td><td>72.3</td></tr>
+                <tr class="ours"><td>Full SelectStream</td><td>81.42</td><td>65.71</td><td>73.0</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="table-caption"><b>Ablations</b> (Tables 3 and 4) under the same node and evidence budgets. Every write, consolidation and readout component contributes; removing evidence calibration causes the largest drop.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap">
+      <h2>Budgets and Efficiency</h2>
+      <div class="stack">
+        <figure>
+          <div class="figure-card"><img src="static/images/fig3_budget.png" alt="Budget sensitivity: accuracy, Recall@M and latency as memory capacity N, subgraph budget B and evidence budget M vary." width="2600" height="787" loading="lazy"></div>
+          <figcaption><b>Figure 3.</b> Sensitivity to memory capacity <i>N</i>, subgraph budget <i>B</i> and evidence budget <i>M</i>. Larger <i>N</i> improves retention, <i>B</i> mainly improves retrieval recall before saturating, and <i>M</i> exposes more evidence at a higher time to first token.</figcaption>
+        </figure>
+        <figure>
+          <div class="figure-card"><img src="static/images/fig4_efficiency.png" alt="Streaming latency (TTFT) and peak GPU memory versus processed frames for Flash-VStream, StreamForest, TimeChat-Online, HERMES and SelectStream." width="2514" height="877" loading="lazy"></div>
+          <figcaption><b>Figure 4.</b> Efficiency scaling with stream length. Query latency and peak GPU memory stay nearly flat, since the stream is compressed into at most <i>N</i> active nodes and each query materializes only a bounded subgraph and <i>M</i> evidence tokens.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="wrap narrow" id="bibtex">
+      <h2>BibTeX</h2>
+      <pre class="bib"><button class="copy" type="button" data-target="bib-text">Copy</button><code id="bib-text">@inproceedings{ge2026selectstream,
+  title     = {What Should a Streaming Video Model Remember?},
+  author    = {Ge, Haonan and Wang, Yiwei and Wu, Hang and Cai, Yujun},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year      = {2026}
+}</code></pre>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    SelectStream · NeurIPS 2026 · <a href="https://github.com/selectstream/SelectStream">Code</a> · <a href="https://arxiv.org/abs/2606.16353">arXiv</a>
+  </footer>
+
+  <script>
+    document.querySelectorAll(".copy").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var text = document.getElementById(btn.dataset.target).innerText;
+        var done = function () {
+          btn.textContent = "Copied";
+          setTimeout(function () { btn.textContent = "Copy"; }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done, function () {});
+        }
+      });
+    });
+  </script>
+</body>
+</html>
