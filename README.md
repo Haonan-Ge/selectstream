@@ -2,7 +2,7 @@
 
 Official implementation of **What Should a Streaming Video Model Remember?** (NeurIPS 2026).
 
-[[Paper]](https://arxiv.org/abs/2606.16353) [[Project Page]](https://selectstream.github.io/)
+[[Paper]](https://arxiv.org/abs/2606.16353) [[Project Page]](https://haonan-ge.github.io/selectstream/)
 
 SelectStream formulates streaming memory as *budgeted online latent evidence allocation*. The current observation stays directly visible to a frozen VLM, while history is exposed only through a compact, query-conditioned evidence budget. Three coordinated mechanisms decide when to write, what to preserve, and how to read:
 
