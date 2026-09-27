@@ -387,11 +387,11 @@ Top-$`k`$ seeds are expanded through temporal and semantic edges within budget $
 If you find SelectStream useful, please cite:
 
 ```bibtex
-@inproceedings{ge2026streamingvideomodelremember,
-  title     = {What Should a Streaming Video Model Remember?},
-  author    = {Ge, Haonan and Wang, Yiwei and Wu, Hang and Cai, Yujun},
-  booktitle = {Advances in Neural Information Processing Systems},
-  year      = {2026}
+@article{ge2026should,
+  title={What Should a Streaming Video Model Remember?},
+  author={Ge, Haonan and Wang, Yiwei and Wu, Hang and Cai, Yujun},
+  journal={arXiv preprint arXiv:2606.16353},
+  year={2026}
 }
 ```
 
